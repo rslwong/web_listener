@@ -225,6 +225,157 @@
             text-align: left;
         }
 
+        .timer {
+            font-size: 14px;
+            color: #667eea;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .result-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .copy-btn {
+            padding: 8px 16px;
+            font-size: 14px;
+            background: #48bb78;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .copy-btn:hover:not(:disabled) {
+            background: #38a169;
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(72, 187, 120, 0.3);
+        }
+
+        .copy-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .copy-feedback {
+            font-size: 12px;
+            color: #48bb78;
+            margin-top: 8px;
+            min-height: 18px;
+        }
+
+        .history-section {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid #e2e8f0;
+        }
+
+        .history-title {
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .history-list {
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            padding: 12px;
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .history-item:hover {
+            background: #edf2f7;
+            border-color: #cbd5e0;
+        }
+
+        .history-text {
+            flex: 1;
+            text-align: left;
+            font-size: 14px;
+            color: #333;
+            word-break: break-word;
+        }
+
+        .history-time {
+            font-size: 12px;
+            color: #999;
+            white-space: nowrap;
+        }
+
+        .history-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .history-copy-btn, .history-delete-btn {
+            padding: 4px 10px;
+            font-size: 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .history-copy-btn {
+            background: #bee3f8;
+            color: #2c5282;
+        }
+
+        .history-copy-btn:hover {
+            background: #90cdf4;
+        }
+
+        .history-delete-btn {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .history-delete-btn:hover {
+            background: #fc8787;
+        }
+
+        .clear-history-btn {
+            margin-top: 15px;
+            padding: 10px 20px;
+            font-size: 13px;
+            background: #cbd5e0;
+            color: #333;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .clear-history-btn:hover {
+            background: #a0aec0;
+        }
+
+        .empty-history {
+            text-align: center;
+            color: #999;
+            padding: 20px;
+            font-size: 14px;
+        }
+
         @media (max-width: 600px) {
             .container {
                 padding: 20px;
@@ -267,13 +418,26 @@
                 <div>
                     <div class="result-text" id="result">-</div>
                     <div class="confidence" id="confidence"></div>
+                    <div class="timer" id="timer"></div>
                 </div>
             </div>
+            <div class="result-actions">
+                <button class="copy-btn" id="copyBtn" disabled>📋 複製</button>
+            </div>
+            <div class="copy-feedback" id="copyFeedback"></div>
         </div>
 
         <div class="alternatives" id="alternativesContainer" style="display: none;">
             <p class="alternatives-title">其他可能的結果：</p>
             <div id="alternativesList"></div>
+        </div>
+
+        <div class="history-section" id="historySection" style="display: none;">
+            <p class="history-title">📜 識別歷史</p>
+            <div class="history-list" id="historyList">
+                <div class="empty-history">暫無歷史記錄</div>
+            </div>
+            <button class="clear-history-btn" id="clearHistoryBtn">清除所有歷史</button>
         </div>
 
         <div class="support-message">
@@ -301,13 +465,132 @@
         const confidenceEl = document.getElementById('confidence');
         const alternativesContainer = document.getElementById('alternativesContainer');
         const alternativesList = document.getElementById('alternativesList');
+        const copyBtn = document.getElementById('copyBtn');
+        const copyFeedback = document.getElementById('copyFeedback');
+        const timerEl = document.getElementById('timer');
+        const historySection = document.getElementById('historySection');
+        const historyList = document.getElementById('historyList');
+        const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+
+        // State management
+        let recordingStartTime = 0;
+        let timerInterval = null;
+        let history = JSON.parse(localStorage.getItem('speechHistory')) || [];
 
         // Set recognition language to Cantonese (Hong Kong)
         recognition.lang = 'yue-HK';
-        recognition.continuous = false;
+        recognition.continuous = true;
         recognition.interimResults = true;
 
-        startBtn.addEventListener('click', () => {
+        // Initialize history display
+        function initializeHistory() {
+            if (history.length > 0) {
+                historySection.style.display = 'block';
+                updateHistoryDisplay();
+            }
+        }
+
+        // Update history display
+        function updateHistoryDisplay() {
+            historyList.innerHTML = '';
+            if (history.length === 0) {
+                historyList.innerHTML = '<div class="empty-history">暫無歷史記錄</div>';
+                historySection.style.display = 'none';
+                return;
+            }
+            
+            historySection.style.display = 'block';
+            history.forEach((item, index) => {
+                const itemEl = document.createElement('div');
+                itemEl.className = 'history-item';
+                itemEl.innerHTML = `
+                    <div class="history-text">${escapeHtml(item.text)}</div>
+                    <div class="history-time">${item.time}</div>
+                    <div class="history-actions">
+                        <button class="history-copy-btn" onclick="copyHistoryItem(${index})">複製</button>
+                        <button class="history-delete-btn" onclick="deleteHistoryItem(${index})">刪除</button>
+                    </div>
+                `;
+                historyList.appendChild(itemEl);
+            });
+        }
+
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        // Copy history item
+        window.copyHistoryItem = function(index) {
+            const text = history[index].text;
+            navigator.clipboard.writeText(text).then(() => {
+                showCopyFeedback('已複製！', true);
+            });
+        };
+
+        // Delete history item
+        window.deleteHistoryItem = function(index) {
+            history.splice(index, 1);
+            localStorage.setItem('speechHistory', JSON.stringify(history));
+            updateHistoryDisplay();
+        };
+
+        // Show copy feedback
+        function showCopyFeedback(message, success = true) {
+            copyFeedback.textContent = message;
+            copyFeedback.style.color = success ? '#48bb78' : '#f56565';
+            setTimeout(() => {
+                copyFeedback.textContent = '';
+            }, 2000);
+        }
+
+        // Start recording timer
+        function startTimer() {
+            recordingStartTime = Date.now();
+            timerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+                const mins = Math.floor(elapsed / 60);
+                const secs = elapsed % 60;
+                timerEl.textContent = `⏱ ${mins}:${secs.toString().padStart(2, '0')}`;
+            }, 100);
+        }
+
+        // Stop recording timer
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+
+        // Add to history
+        function addToHistory(text) {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('zh-HK');
+            history.unshift({
+                text: text,
+                time: timeStr,
+                timestamp: now.getTime()
+            });
+            // Keep only last 10 items
+            if (history.length > 10) {
+                history.pop();
+            }
+            localStorage.setItem('speechHistory', JSON.stringify(history));
+            updateHistoryDisplay();
+        }
+
+        // Initialize
+        initializeHistory();
+
+        function startRecognition() {
             recognition.start();
             statusEl.textContent = '';
             statusEl.innerHTML = '<span class="status-dot"></span>正在聆聽...';
@@ -315,21 +598,51 @@
             startBtn.disabled = true;
             stopBtn.disabled = false;
             resultEl.textContent = '-';
+            timerEl.textContent = '';
+            confidenceEl.textContent = '';
             alternativesContainer.style.display = 'none';
-        });
+            copyBtn.disabled = true;
+            startTimer();
+        }
+
+        startBtn.addEventListener('click', startRecognition);
 
         stopBtn.addEventListener('click', () => {
             recognition.stop();
+            stopTimer();
         });
 
         clearBtn.addEventListener('click', () => {
             resultEl.textContent = '-';
             confidenceEl.textContent = '';
+            timerEl.textContent = '';
             alternativesContainer.style.display = 'none';
             statusEl.textContent = '準備就緒';
             statusEl.className = 'status';
             startBtn.disabled = false;
             stopBtn.disabled = true;
+            copyBtn.disabled = true;
+            copyFeedback.textContent = '';
+            stopTimer();
+        });
+
+        copyBtn.addEventListener('click', () => {
+            const text = resultEl.textContent;
+            if (text && text !== '-') {
+                navigator.clipboard.writeText(text).then(() => {
+                    showCopyFeedback('✓ 已複製到剪貼板！');
+                }).catch(() => {
+                    showCopyFeedback('複製失敗，請重試', false);
+                });
+            }
+        });
+
+        clearHistoryBtn.addEventListener('click', () => {
+            if (confirm('確定要清除所有歷史記錄嗎？')) {
+                history = [];
+                localStorage.removeItem('speechHistory');
+                updateHistoryDisplay();
+            }
         });
 
         recognition.addEventListener('result', (event) => {
@@ -349,10 +662,14 @@
             // Display results
             if (finalTranscript) {
                 resultEl.textContent = finalTranscript;
+                copyBtn.disabled = false;
                 
                 // Show confidence
                 const confidence = (event.results[event.results.length - 1][0].confidence * 100).toFixed(1);
                 confidenceEl.textContent = `信心度: ${confidence}%`;
+                
+                // Add to history
+                addToHistory(finalTranscript);
 
                 // Show alternatives
                 if (event.results[event.results.length - 1].length > 1) {
@@ -365,6 +682,7 @@
                         altDiv.addEventListener('click', () => {
                             resultEl.textContent = alt;
                             confidenceEl.textContent = `信心度: ${(event.results[event.results.length - 1][i].confidence * 100).toFixed(1)}%`;
+                            copyBtn.disabled = false;
                         });
                         alternativesList.appendChild(altDiv);
                     }
@@ -373,6 +691,7 @@
             } else if (interimTranscript) {
                 resultEl.textContent = interimTranscript;
                 confidenceEl.textContent = '';
+                copyBtn.disabled = true;
             }
         });
 
@@ -381,6 +700,7 @@
             statusEl.className = 'status';
             startBtn.disabled = false;
             stopBtn.disabled = true;
+            stopTimer();
         });
 
         recognition.addEventListener('error', (event) => {
@@ -407,6 +727,19 @@
             statusEl.className = 'status error';
             startBtn.disabled = false;
             stopBtn.disabled = true;
+            stopTimer();
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && !startBtn.disabled) {
+                e.preventDefault();
+                startRecognition();
+            } else if (e.code === 'Escape' && !stopBtn.disabled) {
+                e.preventDefault();
+                recognition.stop();
+                stopTimer();
+            }
         });
     </script>
 </body>
