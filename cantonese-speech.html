@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>粵語語音識別</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 30px;
+            font-size: 16px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            min-width: 120px;
+        }
+
+        .start-btn {
+            background: #667eea;
+            color: white;
+        }
+
+        .start-btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .start-btn:active {
+            transform: translateY(0);
+        }
+
+        .stop-btn {
+            background: #f56565;
+            color: white;
+        }
+
+        .stop-btn:hover {
+            background: #e53e3e;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(245, 101, 101, 0.4);
+        }
+
+        .stop-btn:active {
+            transform: translateY(0);
+        }
+
+        .clear-btn {
+            background: #cbd5e0;
+            color: #333;
+        }
+
+        .clear-btn:hover {
+            background: #a0aec0;
+            transform: translateY(-2px);
+        }
+
+        .clear-btn:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f7fafc;
+            border-radius: 10px;
+            min-height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .status.listening {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .status.error {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .result-section {
+            margin-top: 30px;
+        }
+
+        .result-label {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .result-box {
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 20px;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .result-text {
+            font-size: 36px;
+            color: #333;
+            line-height: 1.6;
+            word-break: break-all;
+        }
+
+        .confidence {
+            color: #888;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+
+        .alternatives {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f4f8;
+            border-radius: 10px;
+            text-align: left;
+        }
+
+        .alternatives-title {
+            color: #666;
+            font-weight: 600;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .alternative-item {
+            padding: 8px;
+            background: white;
+            margin: 5px 0;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 14px;
+        }
+
+        .alternative-item:hover {
+            background: #e6f2ff;
+        }
+
+        .support-message {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fffaf0;
+            border-left: 4px solid #f6ad55;
+            border-radius: 5px;
+            color: #7c2d12;
+            font-size: 13px;
+            text-align: left;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .result-text {
+                font-size: 28px;
+            }
+
+            button {
+                min-width: 100px;
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 粵語語音識別</h1>
+        <p class="subtitle">Cantonese Speech Recognition</p>
+
+        <div class="button-group">
+            <button class="start-btn" id="startBtn">開始錄音</button>
+            <button class="stop-btn" id="stopBtn" disabled>停止錄音</button>
+            <button class="clear-btn" id="clearBtn">清除</button>
+        </div>
+
+        <div class="status" id="status">
+            準備就緒
+        </div>
+
+        <div class="result-section">
+            <p class="result-label">識別結果：</p>
+            <div class="result-box">
+                <div>
+                    <div class="result-text" id="result">-</div>
+                    <div class="confidence" id="confidence"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="alternatives" id="alternativesContainer" style="display: none;">
+            <p class="alternatives-title">其他可能的結果：</p>
+            <div id="alternativesList"></div>
+        </div>
+
+        <div class="support-message">
+            <strong>💡 提示：</strong>請使用支援語音識別的瀏覽器（Chrome、Edge、Safari）。確保您的麥克風已連接並授予權限。
+        </div>
+    </div>
+
+    <script>
+        // Check browser support
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        
+        if (!SpeechRecognition) {
+            document.getElementById('status').textContent = '❌ 您的瀏覽器不支援語音識別功能';
+            document.getElementById('status').className = 'status error';
+            document.getElementById('startBtn').disabled = true;
+            alert('您的瀏覽器不支援語音識別功能。請使用 Chrome、Edge 或 Safari。');
+        }
+
+        const recognition = new SpeechRecognition();
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const statusEl = document.getElementById('status');
+        const resultEl = document.getElementById('result');
+        const confidenceEl = document.getElementById('confidence');
+        const alternativesContainer = document.getElementById('alternativesContainer');
+        const alternativesList = document.getElementById('alternativesList');
+
+        // Set recognition language to Cantonese (Hong Kong)
+        recognition.lang = 'yue-HK';
+        recognition.continuous = false;
+        recognition.interimResults = true;
+
+        startBtn.addEventListener('click', () => {
+            recognition.start();
+            statusEl.textContent = '';
+            statusEl.innerHTML = '<span class="status-dot"></span>正在聆聽...';
+            statusEl.className = 'status listening';
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            resultEl.textContent = '-';
+            alternativesContainer.style.display = 'none';
+        });
+
+        stopBtn.addEventListener('click', () => {
+            recognition.stop();
+        });
+
+        clearBtn.addEventListener('click', () => {
+            resultEl.textContent = '-';
+            confidenceEl.textContent = '';
+            alternativesContainer.style.display = 'none';
+            statusEl.textContent = '準備就緒';
+            statusEl.className = 'status';
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+        });
+
+        recognition.addEventListener('result', (event) => {
+            let interimTranscript = '';
+            let finalTranscript = '';
+
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const transcript = event.results[i][0].transcript;
+
+                if (event.results[i].isFinal) {
+                    finalTranscript += transcript;
+                } else {
+                    interimTranscript += transcript;
+                }
+            }
+
+            // Display results
+            if (finalTranscript) {
+                resultEl.textContent = finalTranscript;
+                
+                // Show confidence
+                const confidence = (event.results[event.results.length - 1][0].confidence * 100).toFixed(1);
+                confidenceEl.textContent = `信心度: ${confidence}%`;
+
+                // Show alternatives
+                if (event.results[event.results.length - 1].length > 1) {
+                    alternativesList.innerHTML = '';
+                    for (let i = 1; i < event.results[event.results.length - 1].length; i++) {
+                        const alt = event.results[event.results.length - 1][i].transcript;
+                        const altDiv = document.createElement('div');
+                        altDiv.className = 'alternative-item';
+                        altDiv.textContent = alt;
+                        altDiv.addEventListener('click', () => {
+                            resultEl.textContent = alt;
+                            confidenceEl.textContent = `信心度: ${(event.results[event.results.length - 1][i].confidence * 100).toFixed(1)}%`;
+                        });
+                        alternativesList.appendChild(altDiv);
+                    }
+                    alternativesContainer.style.display = 'block';
+                }
+            } else if (interimTranscript) {
+                resultEl.textContent = interimTranscript;
+                confidenceEl.textContent = '';
+            }
+        });
+
+        recognition.addEventListener('end', () => {
+            statusEl.textContent = '準備就緒';
+            statusEl.className = 'status';
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+        });
+
+        recognition.addEventListener('error', (event) => {
+            let errorMessage = '發生錯誤';
+            
+            switch(event.error) {
+                case 'network':
+                    errorMessage = '❌ 網絡錯誤';
+                    break;
+                case 'audio':
+                    errorMessage = '❌ 音頻錯誤 - 請檢查您的麥克風';
+                    break;
+                case 'not-allowed':
+                    errorMessage = '❌ 未獲得麥克風權限';
+                    break;
+                case 'no-speech':
+                    errorMessage = '❌ 未檢測到語音 - 請重試';
+                    break;
+                default:
+                    errorMessage = `❌ 錯誤: ${event.error}`;
+            }
+
+            statusEl.textContent = errorMessage;
+            statusEl.className = 'status error';
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+        });
+    </script>
+</body>
+</html>
